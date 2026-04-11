@@ -1,0 +1,35 @@
+{
+    "preprocessing": {
+        "unique_category_threshold": 51,
+        "drop_features": [],
+        "missing_values": "impute",
+        "impute_strategy": "mean",
+        "scaling": "standard",
+        "text_process": "tf-idf",
+        "sampling": "undersampling"
+    },
+    "kNN": {
+        "n_neighbors": [3,13,2],
+        "weights": ["uniform", "distance"],
+        "algorithm": ["auto"],
+        "leaf_size": [20, 30, 40],
+        "p": [1, 2]
+    },
+    "decision_tree": {
+        "criterion": ["gini"],
+        "max_depth": [5, 10, 20, 30],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4],
+        "max_features": ["sqrt", "log2"],
+        "splitter": ["best"]
+    },
+    "random_forest": {
+        "n_estimators": [50],
+        "criterion": ["gini"],
+        "max_depth": [5, 10],
+        "min_samples_split": [2, 5, 10],
+        "min_samples_leaf": [1, 2, 4],
+        "max_features": ["sqrt", "log2"],
+        "bootstrap": [false]
+    }
+}
