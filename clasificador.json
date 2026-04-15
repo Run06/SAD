@@ -1,5 +1,6 @@
 {
     "preprocessing": {
+        "language": "spanish",
         "unique_category_threshold": 51,
         "drop_features": [],
         "missing_values": "impute",
