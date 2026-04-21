@@ -3,6 +3,9 @@ import csv
 import random
 import pandas as pd
 
+#PARA INSTALAR EL MODELO SI NO LO TIENES, EN BASH:
+#ollama pull llama3:8b-text-q2_K
+
 csvfile = pd.read_csv('TIDAL.csv')
 neg = []
 neu = []
