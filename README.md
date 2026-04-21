@@ -33,9 +33,9 @@ Proyecto de la asignatura de Sistemas de Apoyo a la Decisión de la carrera de I
 ## Ayuda
 
 ```bash
-python trainDev.py --help
+python train.py --help
 === trainDev ===
-usage: trainDev.py \[-h] -f FILE -a ALGORITHM -p PREDICTION \[-e ESTIMATOR] \[-c CPU] \[-v] \[--debug]
+usage: train.py \[-h] -f FILE -a ALGORITHM -p PREDICTION \[-e ESTIMATOR] \[-c CPU] \[-v] \[--debug]
 
 Codigo para entrenar un modelo a partir de un csv.
 
@@ -78,13 +78,13 @@ optional arguments:
 Basico (ejemplo train)
 
 ```bash
-python trainDev.py -a kNN -f iris.csv -p Especie
+python train.py -a kNN -f iris.csv -p Especie
 ```
 
 Avanzado (ejemplo train)
 
 ```bash
-python trainDev.py -a kNN -f iris.csv -p Especie -e accuracy -c 4 -v --debug
+python train.py -a kNN -f iris.csv -p Especie -e accuracy -c 4 -v --debug
 ```
 
 
