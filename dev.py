@@ -56,7 +56,7 @@ if __name__ == "__main__":
             best_model_name = name
             best_report = report
 
-    # Mostrar resultados del Ganador con el formato solicitado
+    # Mostrar resultados
     print("\n" + "=" * 50)
     print(f"{Fore.GREEN}RESULTADOS DEL GANADOR: {best_model_name.upper()}{Fore.RESET}")
     print(f"Macro F1 en dev: {best_f1:.4f}")
