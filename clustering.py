@@ -73,7 +73,7 @@ def preprocesar_datos():
     if args.prediction and args.prediction in numerical_cols:
         numerical_cols.remove(args.prediction)
 
-    categorical_all = data.select_dtypes(include='object').columns.tolist()
+    categorical_all = data.select_dtypes(include=['object', 'string']).columns.tolist()
     if 'review' in categorical_all:
         categorical_all.remove('review')
     if args.prediction and args.prediction in categorical_all:
@@ -82,7 +82,6 @@ def preprocesar_datos():
     cat_cols = [c for c in categorical_all if data[c].nunique() <= args.preprocessing.get("unique_category_threshold", 51)]
 
     # Eliminar palabras que no aportan informacion
-    lang = args.preprocessing.get("language", "english")
     stop_words_eng = set(stopwords.words('english'))
     stop_words_spa = set(stopwords.words('spanish'))
     stop_words = stop_words_eng.union(stop_words_spa)

@@ -1,6 +1,5 @@
 {
     "preprocessing": {
-        "language": "english",
         "unique_category_threshold": 51,
         "drop_features": [],
         "missing_values": "impute",
@@ -32,6 +31,12 @@
         "min_samples_leaf": [1, 2, 4],
         "max_features": ["sqrt", "log2"],
         "bootstrap": [false]
+    },
+    "logistic_regression": {
+        "C": [0.1, 1.0, 10.0, 100.0],
+        "solver": ["lbfgs", "newton-cg"],
+        "max_iter": [1000],
+        "class_weight": ["balanced"]
     },
     "k_means": {
         "n_clusters": [5,6,8],

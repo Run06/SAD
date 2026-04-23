@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
@@ -23,7 +24,7 @@ from imblearn.over_sampling import RandomOverSampler
 def parse_args():
     parser = argparse.ArgumentParser(description="PASO 1: Entrenamiento de Análisis de Sentimientos")
     parser.add_argument("-f", "--file", required=True, help="Archivo CSV de entrada")
-    parser.add_argument("-a", "--algorithm", required=True, choices=["kNN", "decision_tree", "random_forest"])
+    parser.add_argument("-a", "--algorithm", required=True, choices=["kNN", "decision_tree", "random_forest", "logistic_regression"])
     parser.add_argument("-p", "--prediction", required=True, help="Columna objetivo (ej. score)")
     parser.add_argument("-e", "--estimator", default="f1_macro")
     parser.add_argument("-c", "--cpu", default=-1, type=int)
@@ -50,7 +51,7 @@ def preprocesar_entrenamiento(data, args):
     num_cols = data.select_dtypes(include=['int64', 'float64']).columns.tolist()
     if args.prediction in num_cols: num_cols.remove(args.prediction)
 
-    cat_all = data.select_dtypes(include='object').columns.tolist()
+    cat_all = data.select_dtypes(include=['object', 'string']).columns.tolist()
     if args.prediction in cat_all: cat_all.remove(args.prediction)
 
     # Umbral para decidir si una columna es categoría simple o texto largo
@@ -59,7 +60,7 @@ def preprocesar_entrenamiento(data, args):
     text_cols = [c for c in cat_all if c not in cat_cols]
 
     # 3. Limpieza de Texto (Stemming y Stopwords)
-    lang = args.preprocessing.get("language", "english")
+    lang = args.preprocessing.get("spanish", "english")
     stemmer = SnowballStemmer(lang)
     stop_words = set(stopwords.words(lang))
 
@@ -112,7 +113,7 @@ def run_train(X, y, model, params, name, vec, scaler, le, text_cols, num_cols, a
 
     # Guardar set de validación
     dev_df = pd.concat([xd.reset_index(drop=True), pd.Series(yd, name=args.prediction)], axis=1)
-    dev_df.to_csv('output/dev_set.csv', index=False)
+    dev_df.to_csv('output/traindev/dev_set.csv', index=False)
 
     # Balanceo de carga
     sampling = args.preprocessing.get("sampling", "none")
@@ -136,22 +137,23 @@ def run_train(X, y, model, params, name, vec, scaler, le, text_cols, num_cols, a
         'num_cols': num_cols
     }
 
-    with open(f'output/modelo_{name}.pkl', 'wb') as f:
+    with open(f'output/traindev/modelo_{name}.pkl', 'wb') as f:
         pickle.dump(pipeline, f)
 
-    print(Fore.CYAN + f"Modelo {name} entrenado con {args.estimator}: {gs.best_score_:.4f}" + Fore.RESET)
-    print(Fore.GREEN + f"Guardado en: output/modelo_{name}.pkl" + Fore.RESET)
+    print(Fore.CYAN + f"Modelo {name} entrenado con resultado aproximado {args.estimator}: {gs.best_score_:.4f}" + Fore.RESET)
+    print(Fore.CYAN + f"Ejecuta el dev para ver los resultados reales obtenidos" + Fore.RESET)
+    print(Fore.GREEN + f"Guardado en: output/traindev/modelo_{name}.pkl" + Fore.RESET)
 
 
 if __name__ == "__main__":
     args = parse_args()
-    if not os.path.exists('output'): os.makedirs('output')
+    if not os.path.exists('output/traindev'): os.makedirs('output/traindev')
 
     # Descargas necesarias
     nltk.download(['stopwords', 'punkt', 'punkt_tab'], quiet=True)
 
     # Carga de datos
-    full_data = pd.read_csv(args.file)
+    full_data = pd.read_csv(args.file,usecols=['review','score'])
 
     if args.sample < 1.0:
         # random_state seed (semilla)
@@ -180,3 +182,11 @@ if __name__ == "__main__":
     elif args.algorithm == "random_forest":
         run_train(X, y, RandomForestClassifier(), args.random_forest, "random_forest", vec, scaler, le, text_cols,
                   num_cols, args)
+
+    elif args.algorithm == "logistic_regression":
+        run_train(X, y, LogisticRegression(max_iter=1000), args.logistic_regression, "logistic_regression",
+                  vec, scaler, le, text_cols, num_cols, args)
+
+    else:
+        print("Algoritmo no soportado.")
+        sys.exit(-1)

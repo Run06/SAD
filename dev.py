@@ -13,26 +13,26 @@ if __name__ == "__main__":
     parse.add_argument("-p", "--prediction", required=True)
     args = parse.parse_args()
 
-    if not os.path.exists('output/dev_set.csv'):
+    if not os.path.exists('output/traindev/dev_set.csv'):
         print(
-            Fore.RED + "Error: No existe 'output/dev_set.csv'. Debes ejecutar el script de entrenamiento primero." + Fore.RESET)
+            Fore.RED + "Error: No existe 'output/traindev/dev_set.csv'. Debes ejecutar el script de entrenamiento primero." + Fore.RESET)
         exit()
 
     # Cargar datos de validación
-    dev = pd.read_csv('output/dev_set.csv')
+    dev = pd.read_csv('output/traindev/dev_set.csv')
     y_true = dev[args.prediction]
     X_dev = dev.drop(columns=[args.prediction])
 
-    model_files = [f for f in os.listdir('output') if f.endswith('.pkl')]
+    model_files = [f for f in os.listdir('output/traindev') if f.endswith('.pkl')]
 
     if not model_files:
-        print(Fore.RED + "No se encontraron modelos (.pkl) en la carpeta output." + Fore.RESET)
+        print(Fore.RED + "No se encontraron modelos (.pkl) en la carpeta output/traindev." + Fore.RESET)
         exit()
 
     best_f1, best_model_name, best_report = -1, "", ""
 
     for f in model_files:
-        with open(f'output/{f}', 'rb') as file:
+        with open(f'output/traindev/{f}', 'rb') as file:
             p = pickle.load(file)
 
         # Realizar predicción
