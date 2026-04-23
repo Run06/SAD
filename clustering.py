@@ -28,6 +28,7 @@ from tqdm import tqdm
 
 import gensim
 import gensim.corpora as corpora
+from gensim.models import CoherenceModel
 import pyLDAvis
 import pyLDAvis.gensim_models as gensimvis
 
@@ -155,31 +156,69 @@ def run_lda(params, name, subset_data):
     dictionary.filter_extremes(no_below=5, no_above=0.85)
 
     corpus = [dictionary.doc2bow(text) for text in textos]
-    num_topics = params.get("num_topics", 3)
+
+    # CAMBIO: Ahora leemos una lista de números a probar, igual que en K-Means
+    n_clusters_list = params.get("n_clusters", [2, 3, 4, 5])
     pasadas = params.get("passes", 10)
 
-    print(Fore.YELLOW + f"Entrenando Modelo LDA con {num_topics} temas..." + Fore.RESET)
-    lda_model = gensim.models.LdaModel(
-        corpus=corpus,
-        id2word=dictionary,
-        num_topics=num_topics,
-        random_state=42,
-        passes=pasadas,
-        alpha='auto',
-        per_word_topics=True
-    )
+    best_score = -1
+    best_model = None
+    best_k = -1
+    results = []
 
+    print(Fore.YELLOW + f"Evaluando LDA para K en {n_clusters_list} ({name})..." + Fore.RESET)
+
+    # BUCLE: Entrenamos varios modelos y los puntuamos
+    for k in tqdm(n_clusters_list, desc='Evaluando Temas LDA'):
+        lda_model = gensim.models.LdaModel(
+            corpus=corpus,
+            id2word=dictionary,
+            num_topics=k,
+            random_state=42,
+            passes=pasadas,
+            alpha='auto',
+            per_word_topics=True
+        )
+
+        # Calcular la Coherencia (El equivalente al Silhouette de K-Means)
+        coherence_model_lda = CoherenceModel(model=lda_model, texts=textos, dictionary=dictionary, coherence='c_v')
+        coherence_score = coherence_model_lda.get_coherence()
+
+        results.append({'k': k, 'coherence': coherence_score})
+
+        # Nos quedamos con el modelo que tenga la nota más alta
+        if coherence_score > best_score:
+            best_score = coherence_score
+            best_model = lda_model
+            best_k = k
+
+    # --- GENERAR EL GRÁFICO DEL CODO PARA EL PROFESOR ---
+    plt.figure(figsize=(8, 5))
+    plt.plot([r['k'] for r in results], [r['coherence'] for r in results], marker='o', linestyle='-', color='purple',
+             linewidth=2)
+    plt.title(f'Calidad de Temas LDA (Coherence Score) - {name.upper()}')
+    plt.xlabel('Número de Temas (K)')
+    plt.ylabel('Coherence Score (Más alto es mejor)')
+    plt.grid(True, linestyle='--', alpha=0.7)
+
+    grafico_path = f'output/grafico_coherence_lda_{name}.png'
+    plt.savefig(grafico_path, bbox_inches='tight')
+    plt.close()
+    print(Fore.CYAN + f"Gráfico de Coherencia (LDA) guardado en: {grafico_path}" + Fore.RESET)
+
+    # --- EXTRAER RESULTADOS DEL MEJOR MODELO ---
     palabras_por_cluster = {}
-    for idx, topic in lda_model.show_topics(formatted=False, num_topics=num_topics, num_words=10):
-        top_words = [word for word, prop in topic]
+    for idx, topic in best_model.show_topics(formatted=False, num_topics=best_k, num_words=30):
+        top_words = [f"{word} ({prop:.4f})" for word, prop in topic]
         palabras_por_cluster[f"Tema_{idx}"] = top_words
 
-    save_clustering_report(lda_model, f"lda_{name}", [], "Modelo Probabilístico (LDA)", {'num_topics': num_topics},
-                           palabras_por_cluster)
+    # Guardar reporte en CSV
+    save_clustering_report(best_model, f"lda_{name}", results, best_score, {'num_topics': best_k}, palabras_por_cluster)
 
-    print(Fore.YELLOW + "Generando visualización interactiva..." + Fore.RESET)
+    # Generar el HTML interactivo con el mejor modelo
+    print(Fore.YELLOW + "Generando visualización interactiva del mejor modelo..." + Fore.RESET)
     try:
-        vis = gensimvis.prepare(lda_model, corpus, dictionary, mds='mmds')
+        vis = gensimvis.prepare(best_model, corpus, dictionary, mds='mmds')
         html_path = f'output/dashboard_lda_{name}.html'
         pyLDAvis.save_html(vis, html_path)
         print(Fore.GREEN + f"Dashboard interactivo guardado en: {html_path}" + Fore.RESET)
@@ -235,7 +274,12 @@ def run_clustering(params, name, subset_data):
     features = x_clustering.columns
     for i in range(best_params['n_clusters']):
         indices_ordenados = best_model.cluster_centers_[i].argsort()[::-1]
-        top_words = [features[idx].replace("word_", "") for idx in indices_ordenados[:10]]
+        top_words = []
+        for idx in indices_ordenados[:30]:
+            word = features[idx].replace("word_", "")
+            peso = best_model.cluster_centers_[i][idx]
+            top_words.append(f"{word} ({peso:.4f})")
+
         palabras_por_cluster[f"Cluster_{i}"] = top_words
 
     save_clustering_report(best_model, name, results, best_score, best_params, palabras_por_cluster)
@@ -258,14 +302,10 @@ def save_clustering_report(model, name, results, best_score, best_params, palabr
             writer.writerow(['Metrica', 'Valor'])
             writer.writerow(['Calidad / Puntuacion', best_score])
             writer.writerow(['Numero optimo de grupos', best_params.get('n_clusters', best_params.get('num_topics'))])
-            writer.writerow(['--- RAZONES DETECTADAS POR GRUPO (TOP 10 PALABRAS) ---'])
+            writer.writerow(['--- RAZONES DETECTADAS POR GRUPO ---'])
             for cluster, words in palabras_dict.items():
                 writer.writerow([cluster, ", ".join(words)])
-            if results:
-                writer.writerow(['--- HISTORIAL DE EVALUACION ---'])
-                writer.writerow(['n_clusters', 'Silhouette Score', 'Davies-Bouldin'])
-                for res in results:
-                    writer.writerow([res['k'], res['silhouette'], res['davies_bouldin']])
+
     except Exception as e:
         print(Fore.RED + f"Error al guardar reporte: {e}" + Fore.RESET)
 
