@@ -10,6 +10,7 @@ Tema_3,"play (0.0192), issue (0.0178), time (0.0177), downloaded (0.0148), playi
 Tema_4,"free (0.0249), subscription (0.0209), ca (0.0208), even (0.0170), account (0.0166), log (0.0134), pay (0.0127), trial (0.0109), login (0.0107), sign (0.0104), service (0.0103), let (0.0100), sleep (0.0093), timer (0.0087), plan (0.0079), listen (0.0078), money (0.0078), get (0.0075), back (0.0074), wo (0.0073), month (0.0071), try (0.0069), dolby (0.0069), atmos (0.0065), want (0.0062), tried (0.0060), email (0.0060), say (0.0060), without (0.0060), card (0.0058)"
 """
 
+
 data_neg = []
 
 lines = texto_negativas.strip().split('\n')
