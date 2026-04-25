@@ -39,7 +39,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 def parse_args():
-    parse = argparse.ArgumentParser(description="Algoritmo de Clustering y Topic Modeling.")
+    parse = argparse.ArgumentParser(description="Algoritmo de Clustering y Topic Modeling")
     parse.add_argument("-f", "--file", help="Fichero csv", required=True)
     parse.add_argument("-a", "--algorithm", help="k_means o lda", required=True)
     parse.add_argument("-p", "--prediction", help="Columna para separar Positivas y Negativas", required=False, default=None)
@@ -157,7 +157,6 @@ def run_lda(params, name, subset_data):
 
     corpus = [dictionary.doc2bow(text) for text in textos]
 
-    # CAMBIO: Ahora leemos una lista de números a probar, igual que en K-Means
     n_clusters_list = params.get("n_clusters", [2, 3, 4, 5])
     pasadas = params.get("passes", 10)
 
@@ -168,7 +167,6 @@ def run_lda(params, name, subset_data):
 
     print(Fore.YELLOW + f"Evaluando LDA para K en {n_clusters_list} ({name})..." + Fore.RESET)
 
-    # BUCLE: Entrenamos varios modelos y los puntuamos
     for k in tqdm(n_clusters_list, desc='Evaluando Temas LDA'):
         lda_model = gensim.models.LdaModel(
             corpus=corpus,
@@ -180,7 +178,6 @@ def run_lda(params, name, subset_data):
             per_word_topics=True
         )
 
-        # Calcular la Coherencia (El equivalente al Silhouette de K-Means)
         coherence_model_lda = CoherenceModel(model=lda_model, texts=textos, dictionary=dictionary, coherence='c_v')
         coherence_score = coherence_model_lda.get_coherence()
 
@@ -192,7 +189,6 @@ def run_lda(params, name, subset_data):
             best_model = lda_model
             best_k = k
 
-    # --- GENERAR EL GRÁFICO DEL CODO PARA EL PROFESOR ---
     plt.figure(figsize=(8, 5))
     plt.plot([r['k'] for r in results], [r['coherence'] for r in results], marker='o', linestyle='-', color='purple',
              linewidth=2)
@@ -206,16 +202,13 @@ def run_lda(params, name, subset_data):
     plt.close()
     print(Fore.CYAN + f"Gráfico de Coherencia (LDA) guardado en: {grafico_path}" + Fore.RESET)
 
-    # --- EXTRAER RESULTADOS DEL MEJOR MODELO ---
     palabras_por_cluster = {}
     for idx, topic in best_model.show_topics(formatted=False, num_topics=best_k, num_words=30):
         top_words = [f"{word} ({prop:.4f})" for word, prop in topic]
         palabras_por_cluster[f"Tema_{idx}"] = top_words
 
-    # Guardar reporte en CSV
     save_clustering_report(best_model, f"lda_{name}", results, best_score, {'num_topics': best_k}, palabras_por_cluster)
 
-    # Generar el HTML interactivo con el mejor modelo
     print(Fore.YELLOW + "Generando visualización interactiva del mejor modelo..." + Fore.RESET)
     try:
         vis = gensimvis.prepare(best_model, corpus, dictionary, mds='mmds')
