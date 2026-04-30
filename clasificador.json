@@ -33,10 +33,13 @@
         "bootstrap": [false]
     },
     "logistic_regression": {
-        "C": [0.1, 1.0, 10.0, 100.0],
-        "solver": ["lbfgs", "newton-cg"],
-        "max_iter": [1000],
-        "class_weight": ["balanced"]
+        "C": [0.001, 0.01, 0.1, 1, 10, 100],
+        "solver": ["saga"],
+        "class_weight": ["balanced"],
+        "max_iter": [5000]
+    },
+    "naive_bayes": {
+        "alpha": [0.001, 0.01, 0.1, 1.0]
     },
     "k_means": {
         "n_clusters": [5,6,8],

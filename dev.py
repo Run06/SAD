@@ -1,65 +1,120 @@
 # -*- coding: utf-8 -*-
 """
-Autor: Marcos Cobo, Gabriel Gutiérrez, Aritz de la Pinta, Ibai Munne.
-Script para la evaluación del set de desarrollo (dev).
+Autor: Marcos Cobo, Gabriel Gutiérrez, Aritz de la Pinta, Ibai Munné.
+Script para la evaluación del dev
 """
 
-import pandas as pd, pickle, os, argparse
+import pandas as pd, pickle, os, argparse, re, string
 from sklearn.metrics import classification_report, f1_score
-from colorama import Fore
+from colorama import Fore, init
+import nltk
+from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+
+# Inicializar colorama para Windows
+init(autoreset=True)
+
+
+def clean_text_optimized(text):
+    """
+    IMPORTANTE: Esta función DEBE ser idéntica a la del script de train.
+    Si usaste la versión con EXCLAM, usa esta.
+    """
+    st_es = SnowballStemmer('spanish')
+    st_en = SnowballStemmer('english')
+    stop_words = set(stopwords.words('spanish')).union(set(stopwords.words('english')))
+
+    negaciones = {'no', 'ni', 'poco', 'tampoco', 'not', 'never', 'none', 'neither', 'without', 'sin'}
+    stop_words = stop_words - negaciones
+
+    text = str(text).lower()
+    # Preservamos signos de exclamación como tokens (igual que en train)
+    text = re.sub(r'(!+)', r' [EXCLAM] ', text)
+    text = re.sub(r'(\?+)', r' [PREG] ', text)
+    text = re.sub(r'[^a-zñáéíóú\s]', '', text)
+
+    tokens = word_tokenize(text)
+    is_es = len({'el', 'la', 'que', 'en'}.intersection(set(tokens))) > 0
+    st = st_es if is_es else st_en
+
+    cleaned = [st.stem(w) for w in tokens if w not in stop_words or w in negaciones]
+    return ' '.join(cleaned)
+
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser()
-    parse.add_argument("-p", "--prediction", required=True)
+    parse.add_argument("-p", "--prediction", required=True, help="Columna objetivo (ej. score)")
     args = parse.parse_args()
 
-    if not os.path.exists('output/traindev/dev_set.csv'):
-        print(
-            Fore.RED + "Error: No existe 'output/traindev/dev_set.csv'. Debes ejecutar el script de entrenamiento primero." + Fore.RESET)
+    # Rutas
+    dev_path = 'output/traindev/dev_set.csv'
+    model_dir = 'output/traindev/'
+
+    if not os.path.exists(dev_path):
+        print(Fore.RED + f"Error: No existe {dev_path}.")
         exit()
 
     # Cargar datos de validación
-    dev = pd.read_csv('output/traindev/dev_set.csv')
-    y_true = dev[args.prediction]
-    X_dev = dev.drop(columns=[args.prediction])
+    dev = pd.read_csv(dev_path)
 
-    model_files = [f for f in os.listdir('output/traindev') if f.endswith('.pkl')]
+    # Aseguramos que la columna de predicción tenga el mismo mapeo que en train
+    mapeo = {1: 'negativo', 2: 'negativo', 3: 'neutral', 4: 'positivo', 5: 'positivo'}
+    if dev[args.prediction].dtype in [int, float]:
+        y_true_labels = dev[args.prediction].map(mapeo)
+    else:
+        y_true_labels = dev[args.prediction]
+
+    model_files = [f for f in os.listdir(model_dir) if f.startswith('modelo_') and f.endswith('.pkl')]
 
     if not model_files:
-        print(Fore.RED + "No se encontraron modelos (.pkl) en la carpeta output/traindev." + Fore.RESET)
+        print(Fore.RED + "No se encontraron modelos en " + model_dir)
         exit()
 
     best_f1, best_model_name, best_report = -1, "", ""
 
+    print(Fore.YELLOW + f"[*] Iniciando evaluación de {len(model_files)} modelos...\n")
+
     for f in model_files:
-        with open(f'output/traindev/{f}', 'rb') as file:
-            p = pickle.load(file)
+        try:
+            with open(os.path.join(model_dir, f), 'rb') as file:
+                p = pickle.load(file)
 
-        # Realizar predicción
-        y_pred = p['modelo'].predict(X_dev)
+            # Limpieza de las reviews del set dev
+            # Usamos 'review' por defecto ya que es la columna estándar del pipeline optimizado
+            text_data = dev['review'].fillna('').apply(clean_text_optimized)
 
-        # Calcular Macro F1
-        score = f1_score(y_true, y_pred, average='macro')
+            # Transformación vectorial
+            X_txt = p['vec'].transform(text_data)
 
-        # Obtener los nombres de las categorías (negative, neutral, positive)
-        # p['le'] es el LabelEncoder que guardamos en el train
-        target_names = p['le'].classes_
+            # Escalado (usando el scaler guardado)
+            X_final = p['scaler'].transform(X_txt)
 
-        # Generar el reporte detallado
-        report = classification_report(y_true, y_pred, target_names=target_names)
+            # Predicción
+            y_pred = p['modelo'].predict(X_final)
 
-        name = f.replace('modelo_', '').replace('.pkl', '')
-        print(f"Evaluando modelo: {Fore.CYAN}{name}{Fore.RESET} | F1-Macro: {score:.4f}")
+            # Encodeamos las etiquetas reales para comparar
+            y_true_encoded = p['le'].transform(y_true_labels)
 
-        if score > best_f1:
-            best_f1 = score
-            best_model_name = name
-            best_report = report
+            score = f1_score(y_true_encoded, y_pred, average='macro')
+            report = classification_report(
+                y_true_encoded,
+                y_pred,
+                target_names=p['le'].classes_,
+                zero_division=0
+            )
 
-    # Mostrar resultados
-    print("\n" + "=" * 50)
-    print(f"{Fore.GREEN}RESULTADOS DEL GANADOR: {best_model_name.upper()}{Fore.RESET}")
-    print(f"Macro F1 en dev: {best_f1:.4f}")
-    print(f"\nClassification report (dev):")
-    print(best_report)
-    print("=" * 50)
+            name = f.replace('modelo_', '').replace('.pkl', '')
+            print(f"Modelo: {Fore.GREEN}{name:<20}{Fore.RESET} | F1-macro: {Fore.CYAN}{score:.4f}{Fore.RESET}")
+
+            if score > best_f1:
+                best_f1, best_model_name, best_report = score, name, report
+
+        except Exception as e:
+            print(Fore.RED + f"Error evaluando {f}: {e}")
+
+    print("\n" + "=" * 60)
+    print(f"{Fore.MAGENTA}GANADOR FINAL: {best_model_name}{Fore.RESET}")
+    print(f"F1-macro en dev: {Fore.YELLOW}{best_f1:.4f}{Fore.RESET}")
+    print("\nDetalle del Reporte:\n", best_report)
+    print("=" * 60)
