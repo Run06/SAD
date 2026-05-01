@@ -45,6 +45,9 @@ def parse_args():
     parse.add_argument("-p", "--prediction", help="Columna para separar Positivas y Negativas", required=False, default=None)
     parse.add_argument("-c", "--cpu", help="CPUs", required=False, default=-1, type=int)
     parse.add_argument("--debug", help="Modo debug", required=False, default=False, action="store_true")
+    #Argumentos para Año y Género
+    parse.add_argument("-y", "--year", help="Filtrar por año (ej. 2016)", required=False, default=None)
+    parse.add_argument("-g", "--gender", help="Filtrar por genero (ej. female o male)", required=False, default=None)
 
     args = parse.parse_args()
     with open('clasificador.json') as json_file:
@@ -320,6 +323,35 @@ if __name__ == "__main__":
     print("- Cargando datos...")
     data = load_data(args.file)
 
+
+    #FILTRADO OPCIONAL POR AÑO Y GÉNERO (antes de procesar)
+    if args.year:
+        col_date = 'Date' if 'Date' in data.columns else 'date' if 'date' in data.columns else None
+        if col_date:
+            print(Fore.CYAN + f"- Aplicando filtro de Año: {args.year}" + Fore.RESET)
+            data = data[data[col_date].astype(str).str.contains(str(args.year), na=False)]
+        else:
+            print(Fore.YELLOW + "- Advertencia: No se encontró la columna de fecha para filtrar." + Fore.RESET)
+
+    if args.gender:
+        col_gender = 'Gender' if 'Gender' in data.columns else 'gender' if 'gender' in data.columns else None
+        if col_gender:
+            print(Fore.CYAN + f"- Aplicando filtro de Género: {args.gender}" + Fore.RESET)
+            data = data[data[col_gender].astype(str).str.lower() == str(args.gender).lower()]
+        else:
+            print(Fore.YELLOW + "- Advertencia: No se encontró la columna de género para filtrar." + Fore.RESET)
+
+    if data.empty:
+        print(Fore.RED + "Error: Los filtros dejaron el dataset vacío. Revisa el año o género indicado." + Fore.RESET)
+        sys.exit(1)
+
+        # Crear el sufijo para que los archivos no se sobrescriban
+    sufijo = ""
+    if args.year: sufijo += f"_{args.year}"
+    if args.gender: sufijo += f"_{args.gender}"
+    #FIN FILTRADO
+
+
     print("- Descargando diccionarios...")
     nltk.download(['stopwords', 'punkt', 'punkt_tab', 'wordnet', 'omw-1.4'], quiet=True)
 
@@ -338,22 +370,26 @@ if __name__ == "__main__":
 
     if args.algorithm in ["k_means", "lda"]:
         if score_col:
-            print(Fore.CYAN + f"\nSeparando datos en Positivos/Negativos usando la columna '{score_col}'..." + Fore.RESET)
+            print(
+                Fore.CYAN + f"\nSeparando datos en Positivos/Negativos usando la columna '{score_col}'..." + Fore.RESET)
             data[score_col] = scores_originales
             mediana = data[score_col].median()
             df_positivas = data[data[score_col] > mediana].copy()
             df_negativas = data[data[score_col] <= mediana].copy()
 
             print(Fore.GREEN + f"\n[=== INICIANDO {args.algorithm.upper()}: RESEÑAS POSITIVAS ===]" + Fore.RESET)
-            if args.algorithm == "k_means": run_clustering(args.k_means, "positivas", subset_data=df_positivas)
-            if args.algorithm == "lda": run_lda(args.lda, "positivas", subset_data=df_positivas)
+            nombre_pos = f"positivas{sufijo}"
+            if args.algorithm == "k_means": run_clustering(args.k_means, nombre_pos, subset_data=df_positivas)
+            if args.algorithm == "lda": run_lda(args.lda, nombre_pos, subset_data=df_positivas)
 
             print(Fore.RED + f"\n[=== INICIANDO {args.algorithm.upper()}: RESEÑAS NEGATIVAS ===]" + Fore.RESET)
-            if args.algorithm == "k_means": run_clustering(args.k_means, "negativas", subset_data=df_negativas)
-            if args.algorithm == "lda": run_lda(args.lda, "negativas", subset_data=df_negativas)
+            nombre_neg = f"negativas{sufijo}"
+            if args.algorithm == "k_means": run_clustering(args.k_means, nombre_neg, subset_data=df_negativas)
+            if args.algorithm == "lda": run_lda(args.lda, nombre_neg, subset_data=df_negativas)
         else:
             print(Fore.YELLOW + f"\nEjecutando {args.algorithm.upper()} general..." + Fore.RESET)
-            if args.algorithm == "k_means": run_clustering(args.k_means, "general", subset_data=data)
-            if args.algorithm == "lda": run_lda(args.lda, "general", subset_data=data)
+            nombre_gen = f"general{sufijo}"
+            if args.algorithm == "k_means": run_clustering(args.k_means, nombre_gen, subset_data=data)
+            if args.algorithm == "lda": run_lda(args.lda, nombre_gen, subset_data=data)
     else:
         print(Fore.RED + "Algoritmo no soportado. Usa k_means o lda." + Fore.RESET)
