@@ -3,6 +3,7 @@ import argparse
 import csv
 import random
 import pandas as pd
+import math
 
 parse = argparse.ArgumentParser(description="Analisis de sentimientos por IA")
 parse.add_argument("-f", "--file", help="Fichero csv", required=True)
@@ -39,10 +40,10 @@ while i < int(args.number):
     }
     
     messages.append(mess)
+    max = int(len(mess_test['review'].values[0].split()) +  2 * math.sqrt(len(mess_test['review'].values[0].split())))
+    response = chat(model="llama3:8b-text-q2_K", messages=messages, options={"num_predict": max})
 
-    response = chat(model="llama3:8b-text-q2_K", messages=messages)
-
-    res = {'n_review': str(response.message.content).split('>'), 'score': mess_test['score'].values[0]}
+    res = {'n_review': str(response.message.content).splitlines()[0], 'score': mess_test['score'].values[0]}
     respuestas.append(res)
     print(response.message.content)
     
@@ -53,4 +54,4 @@ with open('para.csv', 'w', newline='') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
     writer.writerows(respuestas)
-print("hecho :3")
+print("Finalizado")
