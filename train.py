@@ -63,27 +63,71 @@ def clean_text_bilingual(text):
 
 
 def balancear_con_ollama(df, target_col, text_col):
-    #Aumento de datos generativo limitado al doble de la clase
     counts = df[target_col].value_counts()
     max_size = counts.max()
     augmented_rows = []
 
+    # 1. Definimos la "personalidad" y ejemplos para Ollama (Few-Shot)
+    base_messages = [
+        {
+            "role": "system",
+            "content": "You are a linguistic assistant. Your task is to paraphrase reviews briefly while keeping the same sentiment. Use the format: Original => Paraphrased"
+        },
+        {
+            "role": "user",
+            "content": "The app doesn't work well => The application works poorly"
+        },
+        {
+            "role": "user",
+            "content": "Me encanta esta interfaz => La interfaz me parece excelente"
+        }
+    ]
+
     for label, count in counts.items():
         if count < max_size:
+            # Limitamos la generación al doble de la clase actual para evitar ruido
             n_to_generate = min(max_size - count, count)
-            print(Fore.MAGENTA + f"Generando {n_to_generate} ejemplos para '{label}'..." + Fore.RESET)
+
+            print(Fore.MAGENTA + f"[*] Generando {n_to_generate} variaciones para la clase: {label}" + Fore.RESET)
+
+            # Seleccionamos las reseñas que vamos a parafrasear
             samples = df[df[target_col] == label].sample(n_to_generate, replace=True)
+
             for _, row in samples.iterrows():
                 try:
-                    response = chat(model="llama3:8b-text-q2_K", messages=[
-                        {"role": "user", "content": f"Paraphrase briefly: {row[text_col]} =>"}
-                    ])
+                    # 2. Creamos el mensaje específico para esta fila
+                    prompt = {"role": "user", "content": f"{row[text_col]} =>"}
+
+                    # 3. Llamada a Ollama enviando el contexto completo
+                    response = chat(
+                        model="llama3:8b-text-q2_K",
+                        messages=base_messages + [prompt]
+                    )
+
+                    # 4. Procesamiento de la respuesta
+                    # Intentamos separar por '=>' por si la IA repite el prompt
+                    full_response = response.message.content.strip()
+                    if "=>" in full_response:
+                        paraphrased_text = full_response.split("=>")[-1].strip()
+                    else:
+                        paraphrased_text = full_response
+
+                    # Crear la nueva fila
                     new_row = row.copy()
-                    new_row[text_col] = response.message.content.strip()
+                    new_row[text_col] = paraphrased_text
                     augmented_rows.append(new_row)
-                except:
+
+                except Exception as e:
+                    print(Fore.RED + f" Error en Ollama: {e}" + Fore.RESET)
                     continue
-    return pd.concat([df, pd.DataFrame(augmented_rows)], ignore_index=True)
+
+    # Unir datos originales con los sintéticos
+    if augmented_rows:
+        df_augmented = pd.concat([df, pd.DataFrame(augmented_rows)], ignore_index=True)
+        print(Fore.GREEN + f"[+] Aumento completado. Filas totales: {len(df_augmented)}" + Fore.RESET)
+        return df_augmented
+
+    return df
 
 
 def preprocesar_entrenamiento(data, args):
@@ -100,7 +144,7 @@ def preprocesar_entrenamiento(data, args):
 
     # 3. Sampling Generativo (Solo en entrenamiento)
     sampling = args.preprocessing.get("sampling", "none")
-    if sampling == "generativo":
+    if sampling == "generativo" or sampling == "over+gen" or sampling == "under+gen":
         df_train = balancear_con_ollama(df_train, args.prediction, 'review')
 
     # 4. Limpieza de Texto Bilingüe
@@ -110,7 +154,7 @@ def preprocesar_entrenamiento(data, args):
     # 5. Vectorización (Fit solo en train)
     if args.preprocessing["text_process"] == "tf-idf":
         vec = TfidfVectorizer(max_features=5000,
-                              ngram_range=(1,2),
+                              ngram_range=(1,3),
                               min_df=2,
                               max_df=0.9,
                               sublinear_tf=True)
@@ -140,10 +184,10 @@ def run_train(xt, xv, yt, yd, model, params, name, vec, scaler, le, text_cols, n
 
     # Balanceo clásico (Opcional si no se usa Ollama)
     sampling = args.preprocessing.get("sampling", "none")
-    if sampling == "oversampling":
+    if sampling == "oversampling" or sampling == "over+gen":
         print(Fore.MAGENTA + "Aplicando oversampling..." + Fore.RESET)
         xt, yt = RandomOverSampler(random_state=42).fit_resample(xt, yt)
-    elif sampling == "undersampling":
+    elif sampling == "undersampling" or sampling == "under+gen":
         print(Fore.MAGENTA + "Aplicando undersampling..." + Fore.RESET)
         xt, yt = RandomUnderSampler(random_state=42).fit_resample(xt, yt)
 

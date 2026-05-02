@@ -11,36 +11,7 @@ import nltk
 from nltk.stem import SnowballStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-
-# Inicializar colorama para Windows
-init(autoreset=True)
-
-
-def clean_text_optimized(text):
-    """
-    IMPORTANTE: Esta función DEBE ser idéntica a la del script de train.
-    Si usaste la versión con EXCLAM, usa esta.
-    """
-    st_es = SnowballStemmer('spanish')
-    st_en = SnowballStemmer('english')
-    stop_words = set(stopwords.words('spanish')).union(set(stopwords.words('english')))
-
-    negaciones = {'no', 'ni', 'poco', 'tampoco', 'not', 'never', 'none', 'neither', 'without', 'sin'}
-    stop_words = stop_words - negaciones
-
-    text = str(text).lower()
-    # Preservamos signos de exclamación como tokens (igual que en train)
-    text = re.sub(r'(!+)', r' [EXCLAM] ', text)
-    text = re.sub(r'(\?+)', r' [PREG] ', text)
-    text = re.sub(r'[^a-zñáéíóú\s]', '', text)
-
-    tokens = word_tokenize(text)
-    is_es = len({'el', 'la', 'que', 'en'}.intersection(set(tokens))) > 0
-    st = st_es if is_es else st_en
-
-    cleaned = [st.stem(w) for w in tokens if w not in stop_words or w in negaciones]
-    return ' '.join(cleaned)
-
+from train import clean_text_bilingual
 
 if __name__ == "__main__":
     parse = argparse.ArgumentParser()
@@ -82,7 +53,7 @@ if __name__ == "__main__":
 
             # Limpieza de las reviews del set dev
             # Usamos 'review' por defecto ya que es la columna estándar del pipeline optimizado
-            text_data = dev['review'].fillna('').apply(clean_text_optimized)
+            text_data = dev['review'].fillna('').apply(clean_text_bilingual)
 
             # Transformación vectorial
             X_txt = p['vec'].transform(text_data)
