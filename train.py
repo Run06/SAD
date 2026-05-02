@@ -98,23 +98,21 @@ def balancear_con_ollama(df, target_col, text_col):
                     # 2. Creamos el mensaje específico para esta fila
                     prompt = {"role": "user", "content": f"{row[text_col]} =>"}
 
+                    # 2.5. Sacamos el máximo de palabras con cierta holgura
+                    max = int(len(row[text_col].split()) +  2 * np.sqrt(len(row[text_col].split())))
+
                     # 3. Llamada a Ollama enviando el contexto completo
                     response = chat(
                         model="llama3:8b-text-q2_K",
-                        messages=base_messages + [prompt]
+                        messages=base_messages + [prompt],
+                        options={"num_predict": max}
                     )
 
-                    # 4. Procesamiento de la respuesta
-                    # Intentamos separar por '=>' por si la IA repite el prompt
-                    full_response = response.message.content.strip()
-                    if "=>" in full_response:
-                        paraphrased_text = full_response.split("=>")[-1].strip()
-                    else:
-                        paraphrased_text = full_response
-
+                    # 4. Nos quedamos solo con la primera linea
+                    res = response.message.content.splitlines()[0]
                     # Crear la nueva fila
                     new_row = row.copy()
-                    new_row[text_col] = paraphrased_text
+                    new_row[text_col] = res
                     augmented_rows.append(new_row)
 
                 except Exception as e:
