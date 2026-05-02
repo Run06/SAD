@@ -1,106 +1,99 @@
 # SAD
-Proyecto de la asignatura de Sistemas de Apoyo a la Decisión de la carrera de Ingeniería Informática de la EHU.
+
+Proyecto de la asignatura de Sistemas de Apoyo a la Decisión de la
+carrera de Ingeniería Informática de la EHU.
+
+------------------------------------------------------------------------
 
 # Manual de Uso
 
 ## Requerimientos
 
-* Python 3.12
-* pip
-* conda // PyCharm
+-   Python 3.12
+-   pip
+-   conda // PyCharm
+-   Para el uso del sampling generativo en el train, descargar Ollama si no se tiene
+``` bash
+ollama pull llama3:8b-text-q2_K
+``` 
+
+------------------------------------------------------------------------
 
 ## Instalación Conda
 
-1. Descargar clasificador.json, test.py, trainDev.py y requirements.txt en un directorio Plantilla
-2. Ejecuta:
-	cd Plantilla
-	conda create -n proyecto-plantilla python=3.12
-	conda activate proyecto-plantilla
-	pip install -r requirements.txt
+1.  Descargar `clasificador.json`, `train.py`, `dev.py`, `test.py` y
+    `requirements.txt` en un directorio (Plantilla)
+2.  Ejecuta:
 
-		(los nombres del directorio y entorno de conda pueden cambiar)
+``` bash
+cd Plantilla
+conda create -n proyecto-sad python=3.12
+conda activate proyecto-sad
+pip install -r requirements.txt
+```
+
+------------------------------------------------------------------------
 
 ## Instalación PyCharm
 
-1. Instalar archivos clasificador.json, test.py, trainDev.py y requirements.txt
-2. Una vez dentro de PyCharm. Importar los archivos en un nuevo proyecto.
-3. Instalar las dependencias con pip:
+1.  Importar `clasificador.json`, `train.py`, `dev.py`, `test.py` y
+    `requirements.txt`
+2.  Crear proyecto en PyCharm
+3.  Instalar dependencias:
 
-   pip install -r requirements.txt
+``` bash
+pip install -r requirements.txt
+```
 
-
+------------------------------------------------------------------------
 
 ## Ayuda
 
-```bash
+``` bash
 python train.py --help
-=== trainDev ===
-usage: train.py \[-h] -f FILE -a ALGORITHM -p PREDICTION \[-e ESTIMATOR] \[-c CPU] \[-v] \[--debug]
-
-Codigo para entrenar un modelo a partir de un csv.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -f FILE, --file FILE  Fichero csv (/Path\_to\_file)
-  -a ALGORITHM, --algorithm ALGORITHM
-                        Algoritmo a ejecutar (kNN, decision\_tree o random\_forest)
-  -p PREDICTION, --prediction PREDICTION
-                        Columna a predecir (Nombre de la columna)
-  -e ESTIMATOR, --estimator ESTIMATOR
-                        Estimador a utilizar para elegir el mejor modelo (ver más abajo diferentes estimadores)
-  -c CPU, --cpu CPU     Número de CPUs a utilizar \[-1 para usar todos]
-  -v, --verbose         Muestra las metricas por la termina
-  --debug               Modo debug \[Muestra informacion extra del preprocesado y almacena el resultado del mismo en un .csv]
 ```
 
-```bash
+``` bash
 python test.py --help
-=== test ===
-usage: test.py \[-h] -f FILE -a ALGORITHM -p PREDICTION  \[-c CPU] \[--debug]
-
-Codigo para predecir instancias en un csv.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -f FILE, --file FILE  Fichero csv (/Path\_to\_file)
-  -a ALGORITHM, --algorithm ALGORITHM
-                        Algoritmo a ejecutar (kNN, decision\_tree o random\_forest)
-  -p PREDICTION, --prediction PREDICTION
-                        Columna a predecir (Nombre de la columna)
-  -c CPU, --cpu CPU     Número de CPUs a utilizar \[-1 para usar todos]
-  --debug               Modo debug \[Muestra informacion extra del preprocesado y almacena el resultado del mismo en un .csv]
 ```
 
-
+------------------------------------------------------------------------
 
 ## Uso
 
-Basico (ejemplo train)
+### Train
 
-```bash
-python train.py -a kNN -f iris.csv -p Especie
+``` bash
+python train.py -a kNN -f data.csv -p score
 ```
 
-Avanzado (ejemplo train)
+### Dev
+Evalua todos los modelos generados por el train en la carpeta output/traindev
 
-```bash
-python train.py -a kNN -f iris.csv -p Especie -e accuracy -c 4 -v --debug
+``` bash
+py .\dev.py -p score
 ```
 
+### Test
 
+``` bash
+python test.py -a kNN -f data.csv -p score
+```
+
+------------------------------------------------------------------------
 
 ## JSON
 
 ```json
 {
     "preprocessing": {
-        "unique\_category\_threshold": 50,      // Numero de apariciones unicas para considerar una columna como categorica (int)
-        "drop\_features": \[],                  // Columnas a eliminar (lista de strings)
-        "missing\_values": "impute",           // Estrategia para tratar los valores nulos (impute, drop)
-        "impute\_strategy": "mean",            // Estrategia para imputar los valores nulos (mean, median, most\_frequent)
-        "scaling": "minmax",                  // Estrategia para escalar los valores (minmax, normalizer, maxabs, standard)
-        "text\_process": "tf-idf",             // Estrategia para procesar el texto (tf-idf, bow)
-        "sampling": "oversampling"            // Estrategia para tratar el desbalanceo de clases (oversampling, undersampling)
+        "unique\_category\_threshold": 50,    // Numero de apariciones unicas para considerar una columna como categorica (int)
+        "drop\_features": [],                // Columnas a eliminar (lista de strings)
+        "missing\_values": "impute",          // Estrategia para tratar los valores nulos (impute, drop)
+        "impute\_strategy": "mean",           // Estrategia para imputar los valores nulos (mean, median, most\_frequent)
+        "scaling": "standard",                  // Estrategia para escalar los valores (minmax, normalizer, maxabs, standard)
+        "text\_process": "tf-idf",            // Estrategia para procesar el texto (tf-idf, bow)
+        "sampling": "none"                    // Estrategia para tratar el desbalanceo de clases (oversampling, undersampling, generativo, over+gen, under+gen)
     },
     "kNN": {
         "n\_neighbors": \[3, 13, 2],            // Numero de vecinos (min, max, step)
@@ -125,20 +118,15 @@ python train.py -a kNN -f iris.csv -p Especie -e accuracy -c 4 -v --debug
         "min\_samples\_leaf": \[1, 2, 4],        // Numero minimo de muestras para ser una hoja (lista de enteros)
         "max\_features": \["sqrt", "log2"],     // Numero maximo de caracteristicas a considerar (sqrt, log2)  
         "bootstrap": \[false]                  // Si se deben usar muestras bootstrap (true, false)
+    },
+    "logistic_regression": {
+        "C": [0.001, 0.01, 0.1, 1, 10, 100],    //Parámetro de regularización inversa. Valores más bajos -> mayor regularización -> reduce sobreajuste
+        "solver": ["saga"],                     //Algoritmo de optimización (lbfgs, liblinear, sag, saga)
+        "class_weight": ["balanced"],           //Ajuste del peso de las clases (balanced)
+        "max_iter": [5000]                      //Número máximo de iteraciones permitidas para la convergencia
+    },
+    "naive_bayes": {
+        "alpha": [0.001, 0.01, 0.1, 1.0]        //Parámetro de suavizado de Laplace. Evita probabilidades cero
     }
 }
 ```
-
-## ESTIMATOR
-```estimator
-Scoring string name             Function                                Comment
-'accuracy'                      metrics.accuracy_score
-‘balanced_accuracy’             metrics.balanced_accuracy_score
-‘average_precision’             metrics.average_precision_score
-‘f1’                            metrics.f1_score                        for binary targets
-‘f1_micro’                      metrics.f1_score                        micro-averaged
-‘f1_macro’                      metrics.f1_score                        macro-averaged
-‘precision’                     metrics.precision_score
-‘recall’                        metrics.recall_score
-```
-
