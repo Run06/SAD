@@ -85,7 +85,7 @@ def preprocesar_datos():
 
     cat_cols = [c for c in categorical_all if data[c].nunique() <= args.preprocessing.get("unique_category_threshold", 51)]
 
-    # Eliminar palabras que no aportan informacion
+    # Eliminar palabras que no aportan información
     stop_words_eng = set(stopwords.words('english'))
     stop_words_spa = set(stopwords.words('spanish'))
     stop_words = stop_words_eng.union(stop_words_spa)
