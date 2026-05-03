@@ -47,6 +47,7 @@ def parse_args():
     parse.add_argument("--debug", help="Modo debug", required=False, default=False, action="store_true")
     parse.add_argument("-y", "--year", help="Filtrar por año (ej. 2016)", required=False, default=None)
     parse.add_argument("-g", "--gender", help="Filtrar por genero (ej. female o male)", required=False, default=None)
+    parse.add_argument("-l", "--location", help="Filtrar por pais (ej. Finland)", required=False, default=None)
 
     args = parse.parse_args()
     with open('clasificador.json') as json_file:
@@ -332,6 +333,15 @@ if __name__ == "__main__":
             data = data[data[col_gender].astype(str).str.lower() == str(args.gender).lower()]
         else:
             print(Fore.YELLOW + "- Advertencia: No se encontró la columna de género para filtrar." + Fore.RESET)
+
+    if args.location:
+        col_loc = 'Location' if 'Location' in data.columns else 'location' if 'location' in data.columns else None
+        if col_loc:
+            print(Fore.CYAN + f"- Aplicando filtro de País: {args.location}" + Fore.RESET)
+            # Usamos str.contains para que busque "Finland" dentro de "Helsinki, Finland"
+            data = data[data[col_loc].astype(str).str.contains(str(args.location), case=False, na=False)]
+        else:
+            print(Fore.YELLOW + "- Advertencia: No se encontró la columna de location para filtrar." + Fore.RESET)
 
     if data.empty:
         print(Fore.RED + "Error: Los filtros dejaron el dataset vacío. Revisa el año o género indicado." + Fore.RESET)
