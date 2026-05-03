@@ -24,7 +24,7 @@ from ollama import chat
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="PASO 1: Entrenamiento de Análisis de Sentimientos")
+    parser = argparse.ArgumentParser(description="Entrenamiento de Análisis de Sentimientos")
     parser.add_argument("-f", "--file", required=True, help="Archivo CSV de entrada")
     parser.add_argument("-a", "--algorithm", required=True,
                         choices=["kNN", "decision_tree", "random_forest", "logistic_regression", "naive_bayes"])
