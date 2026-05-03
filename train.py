@@ -86,7 +86,8 @@ def balancear_con_ollama(df, target_col, text_col):
     for label, count in counts.items():
         if count < max_size:
             # Limitamos la generación al doble de la clase actual para evitar ruido
-            n_to_generate = min(max_size - count, count)
+            #Hasta un maximo de 50, evitar esperas extremedamente largas (recomendacion: luego aplicar over/undersampling)
+            n_to_generate = min(max_size - count, count, 50)
 
             print(Fore.MAGENTA + f"[*] Generando {n_to_generate} variaciones para la clase: {label}" + Fore.RESET)
 
@@ -109,7 +110,14 @@ def balancear_con_ollama(df, target_col, text_col):
                     )
 
                     # 4. Nos quedamos solo con la primera linea
-                    res = response.message.content.splitlines()[0]
+                    content = response.message.content
+
+                    if not content or not content.strip():
+                        print(Fore.YELLOW + "Respuesta vacía de Ollama" + Fore.RESET)
+                        continue
+
+                    lines = content.strip().splitlines()
+                    res = lines[0] if len(lines) > 0 else content
                     # Crear la nueva fila
                     new_row = row.copy()
                     new_row[text_col] = res
@@ -122,7 +130,7 @@ def balancear_con_ollama(df, target_col, text_col):
     # Unir datos originales con los sintéticos
     if augmented_rows:
         df_augmented = pd.concat([df, pd.DataFrame(augmented_rows)], ignore_index=True)
-        print(Fore.GREEN + f"[+] Aumento completado. Filas totales: {len(df_augmented)}" + Fore.RESET)
+        print(Fore.GREEN + f"[+] Aumento completado." + Fore.RESET)
         return df_augmented
 
     return df
