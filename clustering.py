@@ -45,7 +45,6 @@ def parse_args():
     parse.add_argument("-p", "--prediction", help="Columna para separar Positivas y Negativas", required=False, default=None)
     parse.add_argument("-c", "--cpu", help="CPUs", required=False, default=-1, type=int)
     parse.add_argument("--debug", help="Modo debug", required=False, default=False, action="store_true")
-    #Argumentos para Año y Género
     parse.add_argument("-y", "--year", help="Filtrar por año (ej. 2016)", required=False, default=None)
     parse.add_argument("-g", "--gender", help="Filtrar por genero (ej. female o male)", required=False, default=None)
 
